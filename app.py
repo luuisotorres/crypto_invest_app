@@ -2,9 +2,11 @@ import yfinance as yf
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
+import plotly.graph_objects as go
 import numpy as np
 from sklearn.linear_model import LinearRegression
 from statsmodels.tsa.arima.model import ARIMA
+from utils import calculate_bollinger_bands, calculate_macd, calculate_rsi
 
 # Configuração da interface do Streamlit
 st.title("Plataforma de Análise e Previsão de Criptomoedas")
@@ -26,67 +28,70 @@ period = st.radio("Selecione o período para análise:", ["1mo", "3mo", "6mo", "
 
 # Baixar os dados do Yahoo Finance
 data = yf.download(symbol, period=period)
+data = data.reset_index()
+data.columns = data.columns.get_level_values(0)
+data.rename(columns={"index": 'Date'}, inplace=True)
 st.write("### Dados Históricos de Preços")
 st.dataframe(data.tail())
 
-# Gráfico de Preços
-st.write("### Gráfico de Preços de Fechamento")
-fig, ax = plt.subplots(figsize=(10, 5))
-ax.plot(data["Close"], label="Preço de Fechamento", color="blue")
-ax.set_title(f"Preço de Fechamento: {crypto}")
-ax.set_xlabel("Data")
-ax.set_ylabel("Preço (USD)")
-ax.legend()
-st.pyplot(fig)
+# Cálculo das Médias Móveis
+data["SMA_20"] = data["Close"].rolling(window=20).mean()
+data["EMA_10"] = data["Close"].ewm(span=10, adjust=False).mean()
 
-# Cálculo do RSI
-def calculate_rsi(data, window=14):
-    delta = data["Close"].diff(1)
-    gain = delta.where(delta > 0, 0)
-    loss = -delta.where(delta < 0, 0)
-    avg_gain = gain.rolling(window=window).mean()
-    avg_loss = loss.rolling(window=window).mean()
-    rs = avg_gain / avg_loss
-    rsi = 100 - (100 / (1 + rs))
-    return rsi
+# Adding Candlestick chart
+st.write('### Gráfico de Preços')
+
+fig = go.Figure(data=[go.Candlestick(
+    x=data['Date'],
+    open=data['Open'],
+    high=data['High'],
+    low=data['Low'],
+    close=data['Close'],
+    increasing_line_color = 'green',
+    decreasing_line_color='red'
+)])
+
+fig.update_layout(
+    title=f'Gráfico de Preços: {crypto}',
+    xaxis_title = 'Data',
+    yaxis_title = 'Preço (USD)',
+    xaxis_rangeslider_visible = False,
+    template = 'plotly_white'
+)
+
+fig.add_trace(go.Scatter(
+    x=data['Date'],
+    y=data['SMA_20'],
+    mode='lines',
+    name='SMA 20',
+    line=dict(color="blue", width=2)
+))
+
+fig.add_trace(go.Scatter(
+    x=data['Date'],
+    y=data['EMA_10'],
+    mode='lines',
+    name='EMA 10',
+    line=dict(color="yellow", width=2)
+))
+
+st.plotly_chart(fig, use_container_width=True)
+
 
 data["RSI"] = calculate_rsi(data)
 st.write("### RSI (Índice de Força Relativa)")
 st.line_chart(data["RSI"])
 
-# Cálculo das Médias Móveis
-data["SMA_20"] = data["Close"].rolling(window=20).mean()
-data["EMA_20"] = data["Close"].ewm(span=20, adjust=False).mean()
-
-st.write("### Médias Móveis (SMA e EMA)")
-st.line_chart(data[["Close", "SMA_20", "EMA_20"]])
-
-# Cálculo das Bandas de Bollinger
-def calculate_bollinger_bands(data, window=20):
-    sma = data["Close"].rolling(window=window).mean()
-    std = data["Close"].rolling(window=window).std()
-    data["Bollinger_Upper"] = sma + (std * 2)
-    data["Bollinger_Lower"] = sma - (std * 2)
-    return data
-
 data = calculate_bollinger_bands(data)
 st.write("### Bandas de Bollinger")
 st.line_chart(data[["Close", "Bollinger_Upper", "Bollinger_Lower"]])
-
-# Cálculo do MACD
-def calculate_macd(data, short_window=12, long_window=26, signal_window=9):
-    short_ema = data["Close"].ewm(span=short_window, adjust=False).mean()
-    long_ema = data["Close"].ewm(span=long_window, adjust=False).mean()
-    data["MACD"] = short_ema - long_ema
-    data["Signal_Line"] = data["MACD"].ewm(span=signal_window, adjust=False).mean()
-    return data
 
 data = calculate_macd(data)
 st.write("### MACD (Convergência/Divergência de Médias Móveis)")
 st.line_chart(data[["MACD", "Signal_Line"]])
 
 # Previsão com Regressão Linear
-data["Days"] = (data.index - data.index[0]).days
+data["Days"] = (data.Date - data.Date[0]).days
 X = np.array(data["Days"]).reshape(-1, 1)
 y = data["Close"]
 
