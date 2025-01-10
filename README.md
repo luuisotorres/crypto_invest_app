@@ -1,4 +1,4 @@
-# # CoinVision ₿
+# CoinVision ₿
 
 CoinVision is a Streamlit-based web application that provides real-time cryptocurrency analysis tools with interactive charts and technical indicators. The app allows users to analyze different cryptocurrencies using various technical analysis indicators such as RSI, MACD, and Bollinger Bands.
 
