@@ -3,60 +3,67 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 import numpy as np
 from sklearn.linear_model import LinearRegression
 from statsmodels.tsa.arima.model import ARIMA
 from utils import calculate_bollinger_bands, calculate_macd, calculate_rsi
+from utils import get_crypto_symbols
+from utils import rsi_strategy, macd_strategy, bollinger_bands_stragy
 
-# Configuração da interface do Streamlit
-st.title("Plataforma de Análise e Previsão de Criptomoedas")
-st.write("Explore tendências, indicadores técnicos e previsões para tomar decisões informadas.")
+# Setting title
+st.title("CoinVision ₿")
+st.write("Explore trends, technical indicators, and many more!")
 
-# Seleção da criptomoeda
-crypto_symbols = {
-    "Bitcoin (BTC)": "BTC-USD",
-    "Ethereum (ETH)": "ETH-USD",
-    "Binance Coin (BNB)": "BNB-USD",
-    "Ripple (XRP)": "XRP-USD",
-}
-
-crypto = st.selectbox("Escolha a criptomoeda:", list(crypto_symbols.keys()))
+# Selecting cryptocurrency
+crypto_symbols = get_crypto_symbols()
+crypto = st.selectbox("Choose cryptocurrency:", sorted(crypto_symbols.keys()))
 symbol = crypto_symbols[crypto]
 
-# Seleção do período
-period = st.radio("Selecione o período para análise:", ["1mo", "3mo", "6mo", "1y", "5y"])
+# Selecting period
+period = st.radio("Select period for analysis:", ["1mo", "3mo", "6mo", "1y", "5y"])
 
-# Baixar os dados do Yahoo Finance
+# Downloading Yahoo Finance data
 data = yf.download(symbol, period=period)
 data = data.reset_index()
 data.columns = data.columns.get_level_values(0)
 data.rename(columns={"index": 'Date'}, inplace=True)
-st.write("### Dados Históricos de Preços")
+st.write("### Price History")
 st.dataframe(data.tail())
 
-# Cálculo das Médias Móveis
+# Calculating indicators
 data["SMA_20"] = data["Close"].rolling(window=20).mean()
 data["EMA_10"] = data["Close"].ewm(span=10, adjust=False).mean()
+data["RSI"] = calculate_rsi(data)
+data = calculate_bollinger_bands(data)
+data = calculate_macd(data)
 
-# Adding Candlestick chart
-st.write('### Gráfico de Preços')
+# Plotting Candlestick chart
+st.write('### Price Chart')
 
-fig = go.Figure(data=[go.Candlestick(
+indicator = st.selectbox(
+    "Select indicator:",
+    ["RSI", "Bollinger Bands", "MACD"]
+)
+
+fig = make_subplots(
+    rows=2, cols=1,
+    shared_xaxes=True,
+    vertical_spacing=0.15,
+    row_heights=[.7,.3]
+)
+
+fig.add_trace(go.Candlestick(
     x=data['Date'],
     open=data['Open'],
     high=data['High'],
     low=data['Low'],
     close=data['Close'],
     increasing_line_color = 'green',
-    decreasing_line_color='red'
-)])
-
-fig.update_layout(
-    title=f'Gráfico de Preços: {crypto}',
-    xaxis_title = 'Data',
-    yaxis_title = 'Preço (USD)',
-    xaxis_rangeslider_visible = False,
-    template = 'plotly_white'
+    decreasing_line_color='red',
+    name = 'Candlestick'
+),
+row = 1, col = 1
 )
 
 fig.add_trace(go.Scatter(
@@ -65,7 +72,8 @@ fig.add_trace(go.Scatter(
     mode='lines',
     name='SMA 20',
     line=dict(color="blue", width=2)
-))
+),
+row = 1, col = 1)
 
 fig.add_trace(go.Scatter(
     x=data['Date'],
@@ -73,67 +81,97 @@ fig.add_trace(go.Scatter(
     mode='lines',
     name='EMA 10',
     line=dict(color="yellow", width=2)
-))
+),
+row = 1, col = 1)
 
+fig['layout']['yaxis2']['title'] = indicator
+
+if indicator == "RSI":
+    fig.add_trace(
+        go.Scatter(
+            x=data['Date'],
+            y=data['RSI'],
+            mode='lines',
+            name = 'RSI'
+        ),
+        row = 2, col = 1
+    )
+
+elif indicator == 'Bollinger Bands':
+    fig.add_trace(
+        go.Scatter(
+            x=data['Date'],
+            y=data['Close'],
+            mode='lines',
+            name = 'Bollinger Bands'
+        ),
+        row = 2, col = 1
+    )
+
+    fig.add_trace(
+        go.Scatter(
+            x=data['Date'],
+            y=data['Bollinger_Upper'],
+            mode='lines',
+            name="Upper Band",
+            line=dict(color='red', dash='dot')
+        ),
+        row = 2, col = 1
+    )
+
+    fig.add_trace(
+        go.Scatter(
+            x=data['Date'],
+            y=data['Bollinger_Lower'],
+            mode='lines',
+            name='Lower Band',
+            line=dict(color='red', dash='dot')
+        ),
+        row=2, col=1
+    )
+
+elif indicator == "MACD":
+    fig.add_trace(
+        go.Scatter(
+            x=data['Date'],
+            y=data['MACD'],
+            mode='lines',
+            name='MACD'
+        ),
+        row = 2, col = 1
+    )
+
+    fig.add_trace(
+        go.Scatter(
+            x=data['Date'],
+            y=data['Signal_Line'],
+            mode='lines',
+            name='Signal Line'
+        ),
+        row = 2, col = 1 
+    )
+fig.update_layout(
+    title=f'Price Chart: {crypto}',
+    xaxis_title = 'Date',
+    yaxis_title = 'Price (USD)',
+    xaxis_rangeslider_visible = False,
+    template = 'plotly_white',
+    hovermode='x unified',
+    height = 800, width = 1000
+)
 st.plotly_chart(fig, use_container_width=True)
 
+# Computing Strategies
+data["RSI Strategy"] = rsi_strategy(data)
+data["Bollinger Bands Strategy"] = bollinger_bands_stragy(data)
+data["MACD Strategy"] = macd_strategy(data)
 
-data["RSI"] = calculate_rsi(data)
-st.write("### RSI (Índice de Força Relativa)")
-st.line_chart(data["RSI"])
+st.write(f"### {indicator} Strategy Signal")
+if indicator == "RSI":
+    st.dataframe(data[["Date", "Close", "RSI", "RSI Strategy"]].dropna()[::-1])
 
-data = calculate_bollinger_bands(data)
-st.write("### Bandas de Bollinger")
-st.line_chart(data[["Close", "Bollinger_Upper", "Bollinger_Lower"]])
+elif indicator == "Bollinger Bands":
+    st.dataframe(data[["Date", "Close", "Bollinger Bands Strategy"]].dropna()[::-1])
 
-data = calculate_macd(data)
-st.write("### MACD (Convergência/Divergência de Médias Móveis)")
-st.line_chart(data[["MACD", "Signal_Line"]])
-
-# Previsão com Regressão Linear
-data["Days"] = (data.Date - data.Date[0]).days
-X = np.array(data["Days"]).reshape(-1, 1)
-y = data["Close"]
-
-model = LinearRegression()
-model.fit(X, y)
-data["Linear_Prediction"] = model.predict(X)
-
-st.write("### Previsão com Regressão Linear")
-st.line_chart(data[["Close", "Linear_Prediction"]])
-
-# Previsão com ARIMA
-def arima_forecast(data, periods=10):
-    model = ARIMA(data["Close"], order=(1, 1, 1))
-    model_fit = model.fit()
-    forecast = model_fit.forecast(steps=periods)
-    return forecast
-
-forecast = arima_forecast(data)
-st.write("### Previsão com ARIMA (Próximos 10 dias)")
-st.write(forecast)
-
-# Simulador de Investimento
-st.write("### Simulador de Investimento")
-initial_investment = st.number_input("Valor inicial de investimento (USD):", value=1000.0)
-if initial_investment > 0:
-    closing_prices = data["Close"].values
-    if len(closing_prices) > 0:
-        investment_return = initial_investment * (closing_prices[-1] / closing_prices[0])
-        st.write(f"Com um investimento inicial de **${initial_investment:.2f}**, o retorno seria **${investment_return:.2f}** no período escolhido.")
-
-# Estratégia Baseada no RSI
-def rsi_strategy(data):
-    signals = []
-    for rsi in data["RSI"]:
-        if rsi < 30:
-            signals.append("Comprar")
-        elif rsi > 70:
-            signals.append("Vender")
-        else:
-            signals.append("Manter")
-    return signals
-
-data["Estratégia RSI"] = rsi_strategy(data)
-st.write("### Sinal de Estratégia RSI")
-st.dataframe(data[["Close", "RSI", "Estratégia RSI"]])
+elif indicator == "MACD":
+    st.dataframe(data[["Date", "Close", "MACD Strategy"]].dropna()[::-1])
