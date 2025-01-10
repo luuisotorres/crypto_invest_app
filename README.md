@@ -14,6 +14,19 @@ CoinVision is a Streamlit-based web application that provides real-time cryptocu
 - Multiple timeframe analysis (1 month to 5 years)
 - Simple Moving Average (SMA) and Exponential Moving Average (EMA) overlays
 
+## Screenshots
+![Crypto Selection](images/select_crypto.png)<br>
+*Dropdown menu to select different cryptocurrencies*
+
+![Select Period](images/select_period.png)<br>
+*Section where you select the period and see price history*
+
+![Select Indicator](images/select_indicator.png)<br>
+*Dropdown menu where you select technical indicators*
+
+![Price Chart](images/price_chart.png)<br>
+*Screen showing candlestick chart, indicator chart, and indicator strategy*
+
 ## Installation
 
 1. Clone the repository:
