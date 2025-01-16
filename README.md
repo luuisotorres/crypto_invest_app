@@ -111,6 +111,7 @@ The application provides trading signals based on common technical analysis stra
 - statsmodels==0.14.4
 - matplotlib==3.9.4
 - scipy==1.13.1
+- openai==1.59.7
 
 ## Authors 
 - Gregori Zeidler (<a href="https://github.com/gregorizeidler">@gregorizeidler</a>)
