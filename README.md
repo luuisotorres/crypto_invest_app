@@ -76,11 +76,15 @@ streamlit run app.py
 crypto_invest_app/
 ├── app.py                          # Main Streamlit application
 ├── requirements.txt                # Project dependencies
+├── .env.example                    # Example for .env file
 └── utils/
     ├── __init__.py                 # Package initialization
     ├── data_extraction.py          # Data retrieval functions
     ├── technical_indicators.py     # Technical analysis calculations
     └── strategies.py               # Trading strategy implementations
+    └── gpt_utils.py                # AI Agent implementation
+└── data/
+    ├── price_history.json          # JSON file containing price and indicator data
 ```
 
 ## Technical Indicators
