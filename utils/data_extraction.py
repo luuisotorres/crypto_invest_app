@@ -1,4 +1,5 @@
 import pandas as pd
+import os
 
 def get_crypto_symbols():
     """
@@ -8,9 +9,7 @@ def get_crypto_symbols():
 
     url = 'https://finance.yahoo.com/markets/crypto/all/'
     df_list = pd.read_html(url)
-
     df = df_list[0]
-
     df = df[df['Symbol'] != 'Symbol']
 
     crypto_symbols = {

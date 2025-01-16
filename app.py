@@ -5,11 +5,12 @@ import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import numpy as np
-from sklearn.linear_model import LinearRegression
-from statsmodels.tsa.arima.model import ARIMA
+import os
+import json
 from utils import calculate_bollinger_bands, calculate_macd, calculate_rsi
 from utils import get_crypto_symbols
 from utils import rsi_strategy, macd_strategy, bollinger_bands_stragy
+from utils import technical_analyst
 
 # Setting title
 st.title("CoinVision ₿")
@@ -28,15 +29,22 @@ data = yf.download(symbol, period=period)
 data = data.reset_index()
 data.columns = data.columns.get_level_values(0)
 data.rename(columns={"index": 'Date'}, inplace=True)
+
+# Displaying price history
 st.write("### Price History")
 st.dataframe(data.tail())
 
 # Calculating indicators
 data["SMA_20"] = data["Close"].rolling(window=20).mean()
 data["EMA_10"] = data["Close"].ewm(span=10, adjust=False).mean()
-data["RSI"] = calculate_rsi(data)
+data = calculate_rsi(data)
 data = calculate_bollinger_bands(data)
 data = calculate_macd(data)
+
+# Saving price data to a JSON file
+summarized_data = data.tail(30).round(2)
+file_path = os.path.join('data', f'price_history.json')
+summarized_data.to_json(file_path, orient='records', date_format='utf-8')
 
 # Plotting Candlestick chart
 st.write('### Price Chart')
@@ -175,3 +183,16 @@ elif indicator == "Bollinger Bands":
 
 elif indicator == "MACD":
     st.dataframe(data[["Date", "Close", "MACD Strategy"]].dropna()[::-1])
+
+st.write(f'## 🤖 {symbol} Analysis')
+st.write("Click the button below to let an AI Technical Analyst run an analysis on the data.")
+
+if st.button("Run Analysis"):
+    initial_prompt = 'Analyze the data for {symbol}'
+    
+    file_path = os.path.join('data', f'price_history.json')
+    with open(file_path, 'r') as f:
+        json_data = json.load(f)
+
+    analysis = technical_analyst(initial_prompt, json_data)
+    st.write(analysis) 

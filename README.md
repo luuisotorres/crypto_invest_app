@@ -27,6 +27,9 @@ CoinVision is a Streamlit-based web application that provides real-time cryptocu
 ![Price Chart](images/price_chart.png)<br>
 *Screen showing candlestick chart, indicator chart, and indicator strategy*
 
+![Agent Analysis](images/agent_analysis.png)<br>
+*Agent Analysis for SOL-USD*
+
 ## Installation
 
 1. Clone the repository:
